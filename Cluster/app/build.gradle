@@ -23,8 +23,7 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:23.2.1'
-    compile 'com.github.thorbenprimke:realm-mapview:0.9.1'
-    compile 'com.github.thorbenprimke:realm-sfrestaurant-data:0.9.1'
-    compile 'com.google.android.gms:play-services-maps:7.8.0'
+    compile 'com.google.android.gms:play-services-maps:8.4.0'
+    compile 'com.google.android.gms:play-services-location:8.4.0'
     compile 'com.google.maps.android:android-maps-utils:0.4'
 }
