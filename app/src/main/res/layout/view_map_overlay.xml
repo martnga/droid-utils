@@ -37,4 +37,11 @@
 
     </LinearLayout>
 
+    <com.google.android.gms.maps.StreetViewPanoramaView
+        android:id="@+id/steet_view_panorama"
+        android:layout_width="match_parent"
+        android:layout_height="240dp"
+        android:layout_alignParentBottom="true"/>
+
+
 </RelativeLayout>

@@ -19,6 +19,9 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnStreetViewPanoramaReadyCallback;
+import com.google.android.gms.maps.StreetViewPanorama;
+import com.google.android.gms.maps.StreetViewPanoramaView;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
@@ -26,6 +29,7 @@ import com.google.android.gms.maps.model.IndoorBuilding;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.StreetViewPanoramaCamera;
 
 import java.io.IOException;
 
@@ -44,6 +48,9 @@ public class MapFragment extends SupportMapFragment implements GoogleMap.OnIndoo
 
     SeekBar mIndoorSelector;
     TextView mIndoorMinLevel, mIndoorMaxLevel;
+    StreetViewPanoramaView mStreetViewPanoramaView;
+    IndoorBuilding mIndoorBuilding = null;
+    StreetViewPanorama mPanorama;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -53,13 +60,18 @@ public class MapFragment extends SupportMapFragment implements GoogleMap.OnIndoo
         mIndoorSelector = (SeekBar) overlay.findViewById( R.id.indoor_level_selector );
         mIndoorMinLevel = (TextView) overlay.findViewById( R.id.indoor_min_level );
         mIndoorMaxLevel = (TextView) overlay.findViewById( R.id.indoor_max_level );
+        mStreetViewPanoramaView = (StreetViewPanoramaView) overlay.findViewById(R.id.steet_view_panorama);
+        mStreetViewPanoramaView.onCreate(savedInstanceState);
 
         parent.addView( overlay );
         initCamera(  );
         initMapIndoorSelector();
+        hideFloorLevelSelector();
+        initStreetView();
         
         return parent;
     }
+
 
     @Override
     public void onStart() {
@@ -91,6 +103,11 @@ public class MapFragment extends SupportMapFragment implements GoogleMap.OnIndoo
         getMap().setMapType( GoogleMap.MAP_TYPE_HYBRID );
     }
 
+    private void hideFloorLevelSelector() {
+        mIndoorSelector.setVisibility( View.GONE );
+        mIndoorMaxLevel.setVisibility( View.GONE );
+        mIndoorMinLevel.setVisibility( View.GONE );
+    }
 
     private String getAddressFromLatLng( LatLng latLng ) {
         Geocoder geocoder = new Geocoder( getActivity() );
@@ -109,6 +126,32 @@ public class MapFragment extends SupportMapFragment implements GoogleMap.OnIndoo
 
     @Override
     public void onIndoorBuildingFocused() {
+        mIndoorBuilding = getMap().getFocusedBuilding();
+
+        if( mIndoorBuilding == null || mIndoorBuilding.getLevels() == null || mIndoorBuilding.getLevels().size() <= 1 ) {
+            hideFloorLevelSelector();
+        } else {
+            showFloorLevelSelector();
+        }
+    }
+
+    private void showFloorLevelSelector() {
+        if( mIndoorBuilding == null )
+            return;
+
+        int numOfLevels = mIndoorBuilding.getLevels().size();
+
+        mIndoorSelector.setMax( numOfLevels - 1 );
+
+        //Bottom floor is the last item in the list, top floor is the first
+        mIndoorMaxLevel.setText( mIndoorBuilding.getLevels().get( 0 ).getShortName() );
+        mIndoorMinLevel.setText( mIndoorBuilding.getLevels().get( numOfLevels - 1 ).getShortName() );
+
+        mIndoorSelector.setProgress( mIndoorBuilding.getActiveLevelIndex() );
+
+        mIndoorSelector.setVisibility( View.VISIBLE );
+        mIndoorMaxLevel.setVisibility( View.VISIBLE );
+        mIndoorMinLevel.setVisibility( View.VISIBLE );
 
     }
 
@@ -119,7 +162,11 @@ public class MapFragment extends SupportMapFragment implements GoogleMap.OnIndoo
 
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+        if( mIndoorBuilding == null )
+            return;
 
+        int numOfLevels = mIndoorBuilding.getLevels().size();
+        mIndoorBuilding.getLevels().get( numOfLevels - 1 - progress ).activate();
     }
 
     @Override
@@ -134,6 +181,33 @@ public class MapFragment extends SupportMapFragment implements GoogleMap.OnIndoo
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-
+        showStreetView(latLng);
     }
+
+    private void initStreetView() {
+        getMap().setOnMapLongClickListener( this );
+
+        mStreetViewPanoramaView.getStreetViewPanoramaAsync(new OnStreetViewPanoramaReadyCallback() {
+            @Override
+            public void onStreetViewPanoramaReady(StreetViewPanorama panorama) {
+                mPanorama = panorama;
+                showStreetView( new LatLng( 40.7506, -73.9936 ) );
+            }
+        });
+    }
+
+    private void showStreetView( LatLng latLng ) {
+        if( mPanorama == null )
+            return;
+
+        StreetViewPanoramaCamera.Builder builder = new StreetViewPanoramaCamera.Builder( mPanorama.getPanoramaCamera() );
+        builder.tilt( 0.0f );
+        builder.zoom( 0.0f );
+        builder.bearing( 0.0f );
+        mPanorama.animateTo( builder.build(), 0 );
+
+        mPanorama.setPosition( latLng, 300 );
+        mPanorama.setStreetNamesEnabled( true );
+    }
+
 }
